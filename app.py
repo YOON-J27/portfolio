@@ -12,8 +12,8 @@ feedparser.USER_AGENT = "Mozilla/5.0 (compatible; StablecoinNewsApp/1.0)"
 st_autorefresh(interval=30000, key="autorefresh")
 
 # ── 텔레그램 설정
-TELEGRAM_TOKEN = "8953397819:AAGkWzIQqea-YOZ7KaHLVk8jxuUrNqdliy8"
-TELEGRAM_CHAT_ID = "8727603514"
+TELEGRAM_TOKEN = st.secrets["TELEGRAM_TOKEN"]
+TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 
 def send_telegram(message):
     try:
