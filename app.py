@@ -8,7 +8,6 @@ from streamlit_autorefresh import st_autorefresh
 
 feedparser.USER_AGENT = "Mozilla/5.0 (compatible; StablecoinNewsApp/1.0)"
 
-# 30초마다 자동 새로고침
 st_autorefresh(interval=30000, key="autorefresh")
 
 # ── 1. 실시간 가격 가져오기
@@ -56,13 +55,42 @@ def get_news():
         })
     return items
 
-# ── 5. 화면 구성
+# ── 5. DefiLlama 수익률 가져오기
+@st.cache_data(ttl=3600)
+def get_yields():
+    try:
+        response = requests.get("https://yields.llama.fi/pools", timeout=10)
+        data = response.json()
+        pools = []
+        for pool in data["data"]:
+            symbol = pool.get("symbol", "")
+            apy = pool.get("apy")
+            tvl = pool.get("tvlUsd")
+            project = pool.get("project", "")
+            chain = pool.get("chain", "")
+            if (any(s in symbol.upper() for s in ["USDT", "USDC", "DAI"])
+                    and apy is not None
+                    and tvl is not None
+                    and apy > 0
+                    and tvl > 1_000_000):
+                pools.append({
+                    "프로토콜": project,
+                    "코인": symbol,
+                    "체인": chain,
+                    "APY (%)": round(apy, 2),
+                    "TVL ($)": f"${tvl/1_000_000:.1f}M"
+                })
+        pools.sort(key=lambda x: x["APY (%)"], reverse=True)
+        return pools[:15]
+    except Exception:
+        return []
+
+# ── 6. 화면 구성
 st.title("🛡️ 스테이블코인 디페그 모니터")
 st.caption(f"마지막 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 prices = get_prices()
 
-# 히스토리에 현재 가격 추가
 st.session_state.price_history.append({
     "시간": datetime.now().strftime("%H:%M:%S"),
     "USDT": prices["USDT"],
@@ -70,7 +98,6 @@ st.session_state.price_history.append({
     "DAI":  prices["DAI"]
 })
 
-# 최근 50개만 유지
 if len(st.session_state.price_history) > 50:
     st.session_state.price_history = st.session_state.price_history[-50:]
 
@@ -100,6 +127,17 @@ if len(st.session_state.price_history) > 1:
     st.line_chart(df_history)
 else:
     st.info("데이터 수집 중... 30초 후 그래프가 나타납니다.")
+
+st.divider()
+
+st.subheader("💰 스테이블코인 수익률 순위 (DefiLlama)")
+yields = get_yields()
+if yields:
+    df_yields = pd.DataFrame(yields)
+    st.dataframe(df_yields, use_container_width=True, hide_index=True)
+    st.caption("TVL $1M 이상 풀만 표시 · 1시간마다 업데이트")
+else:
+    st.info("수익률 데이터를 불러오는 중입니다...")
 
 st.divider()
 
