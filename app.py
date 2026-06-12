@@ -11,6 +11,17 @@ feedparser.USER_AGENT = "Mozilla/5.0 (compatible; StablecoinNewsApp/1.0)"
 
 st_autorefresh(interval=30000, key="autorefresh")
 
+# ── 텔레그램 설정
+TELEGRAM_TOKEN = "8953397819:AAGkWzIQqea-YOZ7KaHLVk8jxuUrNqdliy8"
+TELEGRAM_CHAT_ID = "8727603514"
+
+def send_telegram(message):
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": message}, timeout=5)
+    except Exception:
+        pass
+
 # ── 1. 실시간 가격 가져오기
 def get_prices():
     url = "https://api.coingecko.com/api/v3/simple/price"
@@ -34,9 +45,12 @@ def check_depeg(prices):
             alerts.append(f"⚠️ {coin} 디페그! 현재 가격: ${price}")
     return alerts
 
-# ── 3. 가격 히스토리 세션에 쌓기
+# ── 3. 가격 히스토리
 if "price_history" not in st.session_state:
     st.session_state.price_history = []
+
+if "alerted_coins" not in st.session_state:
+    st.session_state.alerted_coins = set()
 
 # ── 4. 뉴스 가져오기
 @st.cache_data(ttl=900)
@@ -56,7 +70,7 @@ def get_news():
         })
     return items
 
-# ── 5. DefiLlama 수익률 가져오기
+# ── 5. DefiLlama 수익률
 @st.cache_data(ttl=3600)
 def get_yields():
     try:
@@ -112,12 +126,18 @@ with col3:
 
 st.divider()
 
+# 디페그 감지 + 텔레그램 알림
 alerts = check_depeg(prices)
 if alerts:
     for alert in alerts:
         st.error(alert)
+        coin = alert.split()[1]
+        if coin not in st.session_state.alerted_coins:
+            send_telegram(f"🚨 디페그 감지!\n{alert}\n\n확인: stablecoin-monitor-y.streamlit.app")
+            st.session_state.alerted_coins.add(coin)
 else:
     st.success("✅ 현재 디페그 없음 — 세 코인 모두 정상입니다")
+    st.session_state.alerted_coins = set()
 
 st.divider()
 
