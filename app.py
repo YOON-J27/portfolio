@@ -3,6 +3,7 @@ import feedparser
 import pandas as pd
 import streamlit as st
 import urllib.parse
+import altair as alt
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 
@@ -123,8 +124,13 @@ st.divider()
 st.subheader("📈 실시간 가격 추이")
 if len(st.session_state.price_history) > 1:
     df_history = pd.DataFrame(st.session_state.price_history)
-    df_history = df_history.set_index("시간")
-    st.line_chart(df_history)
+    df_melt = df_history.melt("시간", var_name="코인", value_name="가격")
+    chart = alt.Chart(df_melt).mark_line().encode(
+        x="시간:O",
+        y=alt.Y("가격:Q", scale=alt.Scale(domain=[0.985, 1.005])),
+        color="코인:N"
+    ).properties(height=300)
+    st.altair_chart(chart, use_container_width=True)
 else:
     st.info("데이터 수집 중... 30초 후 그래프가 나타납니다.")
 
