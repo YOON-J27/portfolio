@@ -129,7 +129,7 @@ if len(st.session_state.price_history) > 1:
         x="시간:O",
         y=alt.Y("가격:Q", scale=alt.Scale(domain=[0.985, 1.005])),
         color="코인:N"
-    ).properties(height=300)
+    ).properties(height=300).interactive()
     st.altair_chart(chart, use_container_width=True)
 else:
     st.info("데이터 수집 중... 30초 후 그래프가 나타납니다.")
