@@ -34,25 +34,11 @@ def check_depeg(prices):
             alerts.append(f"⚠️ {coin} 디페그! 현재 가격: ${price}")
     return alerts
 
-# ── 3. 30일 과거 데이터
-@st.cache_data(ttl=3600)
-def get_history(coin_id):
-    try:
-        url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
-        params = {"vs_currency": "usd", "days": 30}
-        response = requests.get(url, params=params, timeout=10)
-        data = response.json()
-        if "prices" not in data:
-            return pd.DataFrame()
-        prices = data["prices"]
-        df = pd.DataFrame(prices, columns=["timestamp", coin_id])
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df = df.set_index("timestamp")
-        return df
-    except Exception:
-        return pd.DataFrame()
+# ── 3. 가격 히스토리 세션에 쌓기
+if "price_history" not in st.session_state:
+    st.session_state.price_history = []
 
-# ── 4. 뉴스 가져오기 (Google News RSS)
+# ── 4. 뉴스 가져오기
 @st.cache_data(ttl=900)
 def get_news():
     query = "stablecoin OR USDC OR USDT OR Tether OR DAI"
@@ -76,6 +62,18 @@ st.caption(f"마지막 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M:%S
 
 prices = get_prices()
 
+# 히스토리에 현재 가격 추가
+st.session_state.price_history.append({
+    "시간": datetime.now().strftime("%H:%M:%S"),
+    "USDT": prices["USDT"],
+    "USDC": prices["USDC"],
+    "DAI":  prices["DAI"]
+})
+
+# 최근 50개만 유지
+if len(st.session_state.price_history) > 50:
+    st.session_state.price_history = st.session_state.price_history[-50:]
+
 col1, col2, col3 = st.columns(3)
 with col1:
     st.metric(label="USDT", value=f"${prices['USDT']}", delta=round(prices["USDT"] - 1.0, 4))
@@ -95,17 +93,13 @@ else:
 
 st.divider()
 
-st.subheader("📈 30일 가격 추이")
-df_usdt = get_history("tether")
-df_usdc = get_history("usd-coin")
-df_dai  = get_history("dai")
-
-if df_usdt.empty or df_usdc.empty or df_dai.empty:
-    st.warning("⚠️ 가격 데이터를 불러오는 중입니다. 잠시 후 새로고침해주세요.")
+st.subheader("📈 실시간 가격 추이")
+if len(st.session_state.price_history) > 1:
+    df_history = pd.DataFrame(st.session_state.price_history)
+    df_history = df_history.set_index("시간")
+    st.line_chart(df_history)
 else:
-    df_all = pd.concat([df_usdt, df_usdc, df_dai], axis=1, sort=False)
-    df_all.columns = ["USDT", "USDC", "DAI"]
-    st.line_chart(df_all)
+    st.info("데이터 수집 중... 30초 후 그래프가 나타납니다.")
 
 st.divider()
 
