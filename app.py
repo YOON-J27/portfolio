@@ -33,15 +33,20 @@ def check_depeg(prices):
 # ── 3. 30일 과거 데이터
 @st.cache_data(ttl=3600)
 def get_history(coin_id):
-    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
-    params = {"vs_currency": "usd", "days": 30}
-    response = requests.get(url, params=params)
-    data = response.json()
-    prices = data["prices"]
-    df = pd.DataFrame(prices, columns=["timestamp", coin_id])
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-    df = df.set_index("timestamp")
-    return df
+    try:
+        url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+        params = {"vs_currency": "usd", "days": 30}
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
+        if "prices" not in data:
+            return pd.DataFrame()
+        prices = data["prices"]
+        df = pd.DataFrame(prices, columns=["timestamp", coin_id])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df = df.set_index("timestamp")
+        return df
+    except Exception:
+        return pd.DataFrame()
 
 # ── 4. 뉴스 가져오기 (Google News RSS)
 @st.cache_data(ttl=900)
@@ -90,9 +95,13 @@ st.subheader("📈 30일 가격 추이")
 df_usdt = get_history("tether")
 df_usdc = get_history("usd-coin")
 df_dai  = get_history("dai")
-df_all  = pd.concat([df_usdt, df_usdc, df_dai], axis=1, sort=False)
-df_all.columns = ["USDT", "USDC", "DAI"]
-st.line_chart(df_all)
+
+if df_usdt.empty or df_usdc.empty or df_dai.empty:
+    st.warning("⚠️ 가격 데이터를 불러오는 중입니다. 잠시 후 새로고침해주세요.")
+else:
+    df_all = pd.concat([df_usdt, df_usdc, df_dai], axis=1, sort=False)
+    df_all.columns = ["USDT", "USDC", "DAI"]
+    st.line_chart(df_all)
 
 st.divider()
 
