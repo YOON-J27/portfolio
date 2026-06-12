@@ -41,7 +41,7 @@ def get_prices():
 def check_depeg(prices):
     alerts = []
     for coin, price in prices.items():
-        if price < 0.99 or price > 1.01:
+        if price < 1.0 or price > 1.01:
             alerts.append(f"⚠️ {coin} 디페그! 현재 가격: ${price}")
     return alerts
 
