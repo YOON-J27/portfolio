@@ -4,8 +4,12 @@ import pandas as pd
 import streamlit as st
 import urllib.parse
 from datetime import datetime
+from streamlit_autorefresh import st_autorefresh
 
 feedparser.USER_AGENT = "Mozilla/5.0 (compatible; StablecoinNewsApp/1.0)"
+
+# 30초마다 자동 새로고침
+st_autorefresh(interval=30000, key="autorefresh")
 
 # ── 1. 실시간 가격 가져오기
 def get_prices():
